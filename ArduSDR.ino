@@ -17,7 +17,7 @@ Si5351 si5351;
 
 unsigned long frequency = 3573000UL;    // RX frequency in Hz; start with 3573 kHz
 int catOperatingMode = 1;               // 1 = LSB
-int catWidth = 0;
+int catBandWidth = 0;
 int catTx = 0;
 int catPowerSwitch = 1;
 int catTxSet = 0;
@@ -50,7 +50,7 @@ void pollSerial(void)
 {
     static char rxbuffer[32];
     static char txbuffer[32];
-    static int rxlength = 0;
+    static unsigned int rxlength = 0;
 
     while (Serial.available() > 0)
     {
@@ -98,47 +98,7 @@ void pollSerial(void)
             case 0x4149:        // AI: Auto Information
                 if (rxlength == 2)
                 {
-                  strcpy(txbuffer, "AI1;");
-                }
-                break;
-
-            case 0x4944:        // ID: Identification
-                if (rxlength == 2)
-                {
-                  strcpy(txbuffer, "ID0670;");
-                }
-                break;
-
-            case 0x4946:        // IF: Information
-                if (rxlength == 2)
-                {
-                    sprintf(txbuffer, "IF001%09lu+000000%X00000;", frequency, catOperatingMode);
-                }
-                break;
-
-            case 0x4D44:        // MD: Operating Mode
-                if (rxlength == 3)
-                {
-                    // Read Mode
-                    sprintf(txbuffer, "MD0%d;", catOperatingMode);
-                }
-                else
-                {
-                    // Set Mode
-                    catOperatingMode = atoi(&rxbuffer[3]);
-                }
-                break;
-
-            case 0x5348:        // SH: Width
-                if (rxlength == 3)
-                {
-                    // Read Width
-                    sprintf(txbuffer, "SH0%02d;", catWidth);
-                }
-                else
-                {
-                    // Set Width
-                    catWidth = atoi(&rxbuffer[3]);
+                    strcpy(txbuffer, "AI1;");
                 }
                 break;
 
@@ -169,6 +129,33 @@ void pollSerial(void)
                 }
                 break;
 
+            case 0x4944:        // ID: Identification
+                if (rxlength == 2)
+                {
+                    strcpy(txbuffer, "ID0570;");
+                }
+                break;
+
+            case 0x4946:        // IF: Information
+                if (rxlength == 2)
+                {
+                    sprintf(txbuffer, "IF001%09lu+000000%X00000;", frequency, catOperatingMode);
+                }
+                break;
+
+            case 0x4D44:        // MD: Operating Mode
+                if (rxlength == 3)
+                {
+                    // Read Mode
+                    sprintf(txbuffer, "MD0%d;", catOperatingMode);
+                }
+                else
+                {
+                    // Set Mode
+                    catOperatingMode = atoi(&rxbuffer[3]);
+                }
+                break;
+
             case 0x5053:        // PS: Power Switch
                 if (rxlength == 2)
                 {
@@ -179,6 +166,19 @@ void pollSerial(void)
                 {
                     // Write
                     catPowerSwitch = atoi(&rxbuffer[2]);
+                }
+                break;
+
+            case 0x5348:        // SH: Width
+                if (rxlength == 3)
+                {
+                    // Read Width
+                    sprintf(txbuffer, "SH0%02d;", catBandWidth);
+                }
+                else
+                {
+                    // Set Width
+                    catBandWidth = atoi(&rxbuffer[3]);
                 }
                 break;
 
@@ -195,7 +195,7 @@ void pollSerial(void)
                 }
                 break;
 
-            default:        // unknown command
+            default:            // unknown command
                 strcpy(txbuffer, "????????");
                 delay(1000);
                 break;
@@ -214,7 +214,7 @@ void pollSerial(void)
 #endif
         }
 
-        rxlength = 0;   // Received command completed.
+        rxlength = 0;           // Received command completed.
     }
 }
 
