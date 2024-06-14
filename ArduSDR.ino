@@ -7,6 +7,7 @@
  * https://github.com/Gnaddl/ArduSDR
  */
 
+#include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include <Encoder.h>
 #include <si5351.h>
@@ -58,7 +59,7 @@ void pollSerial(void)
 
         if (!isprint(c) || isspace(c))
         {
-            return;
+            continue;
         }
 
         if (c != ';')
@@ -68,7 +69,7 @@ void pollSerial(void)
             {
                 rxbuffer[rxlength++] = toupper(c);
             }
-            return;
+            continue;
         }
 
         // Termination character received, command is complete. Try to interpret it.
@@ -76,7 +77,7 @@ void pollSerial(void)
         {
             // Command is too short, ignore it and clear the receive buffer.
             rxlength = 0;
-            return;
+            continue;
         }
 
         rxbuffer[rxlength] = '\0';
