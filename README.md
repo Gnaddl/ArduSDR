@@ -40,5 +40,5 @@ The ArduSDR supports the following subset of the most commonly used Yaesu FT-991
 
 [1] Elektor SDR shield: https://www.elektormagazine.com/magazine/elektor-201807/41737
 
-[2] Yaesu FT-991 CAT Operation Reference Manual: https://www.yaesu.com/downloadFile.cfm?FileID=10604&FileCatID=158&FileName=FT%2D991%5FCAT%5FOM%5FENG%5F1612%2DD0.pdf&FileContentType=application%2Fpdf
+[2] Yaesu FT-991 CAT Operation Reference Manual: https://yaesu.com/Files/4CB893D7-1018-01AF-FA97E9E9AD48B50C/FT-991A_CAT_OM_ENG_1711-D.pdf
 
