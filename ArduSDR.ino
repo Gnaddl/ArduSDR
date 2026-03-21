@@ -16,12 +16,17 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 Encoder rotaryEncoder(2, 3);
 Si5351 si5351;
 
-unsigned long frequency = 3573000UL;    // RX frequency in Hz; start with 3573 kHz
-int catOperatingMode = 1;               // 1 = LSB
+unsigned long frequencyVfoA = 14074000UL;   // VFO-A frequency in Hz; start with 14.074 MHz
+unsigned long frequencyVfoB = 7074000UL;    // VFO-B frequency in Hz; start with 7.074 MHz
+unsigned long &frequency = frequencyVfoA;
+int catAutoInformation = 1;
+int catOperatingMode = 2;                   // 2 = USB
 int catBandWidth = 0;
 int catTx = 0;
 int catPowerSwitch = 1;
 int catTxSet = 0;
+int catKeySpeed = 10;
+int catNarrow = 0;
 
 
 /*
@@ -92,14 +97,42 @@ void pollSerial(void)
         //delay(500);
 #endif
 
+        // Command characters can be in upper or lower case. Convert to upper case first.
+        rxbuffer[0] = toupper(rxbuffer[0]);
+        rxbuffer[1] = toupper(rxbuffer[1]);
+
         // Get the command from the first two characters in the receive buffers.
-        int cmd = (rxbuffer[0] << 8) | rxbuffer[1];
+        int cmd = (toupper(rxbuffer[0]) << 8) | toupper(rxbuffer[1]);
         switch (cmd)
         {
             case 0x4149:        // AI: Auto Information
                 if (rxlength == 2)
                 {
-                    strcpy(txbuffer, "AI1;");
+                    // Read
+                    sprintf(txbuffer, "AI%d;", catAutoInformation);
+                }
+                else
+                {
+                    // Write
+                    catAutoInformation = atoi(&rxbuffer[3]);
+                }
+                break;
+
+            case 0x4558:        // EX: Menu
+                if (rxlength >= 5)
+                {
+                    static char menuBuffer[32] = "";
+                    if (rxlength == 5)
+                    {
+                        // Read
+                        strcpy(txbuffer, menuBuffer);
+                        strcat(txbuffer, ";");
+                    }
+                    else
+                    {
+                        // Write
+                        strcpy(menuBuffer, rxbuffer);
+                    }
                 }
                 break;
 
@@ -107,13 +140,27 @@ void pollSerial(void)
                 if (rxlength == 2)
                 {
                     // Read
-                    sprintf(txbuffer, "FA%09lu;", frequency);
+                    sprintf(txbuffer, "FA%09lu;", frequencyVfoA);
                 }
                 else
                 {
                     // Write
                     frequency = atol(&rxbuffer[2]);
                     setfreq(frequency);
+                }
+                break;
+
+            case 0x4642:        // FB: Frequency VFO-B
+                if (rxlength == 2)
+                {
+                    // Read
+                    sprintf(txbuffer, "FB%09lu;", frequencyVfoB);
+                }
+                else
+                {
+                    // Write
+                    frequency = atol(&rxbuffer[2]);
+                    setfreq(frequencyVfoB);
                 }
                 break;
 
@@ -144,6 +191,19 @@ void pollSerial(void)
                 }
                 break;
 
+            case 0x4B53:        // KS: Key Speed
+                if (rxlength == 2)
+                {
+                    // Read
+                    sprintf(txbuffer, "KS%03d;", catKeySpeed);
+                }
+                else
+                {
+                    // Write
+                    catKeySpeed = atoi(&rxbuffer[2]);
+                }
+                break;
+
             case 0x4D44:        // MD: Operating Mode
                 if (rxlength == 3)
                 {
@@ -154,6 +214,19 @@ void pollSerial(void)
                 {
                     // Set Mode
                     catOperatingMode = atoi(&rxbuffer[3]);
+                }
+                break;
+
+            case 0x4E41:        // NA: Narrow
+                if (rxlength == 3)
+                {
+                    // Read Mode
+                    sprintf(txbuffer, "NA0%d;", catNarrow);
+                }
+                else
+                {
+                    // Set Mode
+                    catNarrow = atoi(&rxbuffer[3]);
                 }
                 break;
 
@@ -197,7 +270,7 @@ void pollSerial(void)
                 break;
 
             default:            // unknown command
-                strcpy(txbuffer, "????????");
+                sprintf(txbuffer, "%c%c????;", rxbuffer[0], rxbuffer[1]);
                 delay(1000);
                 break;
         }
