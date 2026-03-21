@@ -145,7 +145,7 @@ void pollSerial(void)
                 else
                 {
                     // Write
-                    frequency = atol(&rxbuffer[2]);
+                    frequencyVfoA = atol(&rxbuffer[2]);
                     setfreq(frequency);
                 }
                 break;
@@ -159,8 +159,8 @@ void pollSerial(void)
                 else
                 {
                     // Write
-                    frequency = atol(&rxbuffer[2]);
-                    setfreq(frequencyVfoB);
+                    frequencyVfoB = atol(&rxbuffer[2]);
+                    setfreq(frequency);
                 }
                 break;
 
