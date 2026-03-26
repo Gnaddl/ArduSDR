@@ -19,11 +19,11 @@ Si5351 si5351;
 unsigned long frequencyVfoA = 14074000UL;   // VFO-A frequency in Hz; start with 14.074 MHz
 unsigned long frequencyVfoB = 7074000UL;    // VFO-B frequency in Hz; start with 7.074 MHz
 unsigned long &frequency = frequencyVfoA;
-int catAutoInformation = 1;
-int catOperatingMode = 2;                   // 2 = USB
+int catAutoInformation = 1;                 // 0 = off, 1 = on
+int catOperatingMode = 2;                   // 1 = LSB, 2 = USB, ...
 int catBandWidth = 0;
 int catTx = 0;
-int catPowerSwitch = 1;
+int catPowerSwitch = 1;                     // 0 = power off, 1 = power on
 int catTxSet = 0;
 int catKeySpeed = 10;
 int catNarrow = 0;
@@ -32,12 +32,12 @@ int catNarrow = 0;
 /*
  * setfreq - set the RX frequency in the SI5351 and display it on the LCD
  */
-void setfreq (unsigned long frequency)
+void setfreq(unsigned long frequency)
 {
     uint64_t freq = frequency * 100ULL;
 
     char buffer[20];
-    sprintf(buffer, "%5u.%02u kHz", (unsigned int)(frequency / 1000UL), (unsigned int)(frequency % 1000UL) / 10);
+    sprintf(buffer, "%5u.%03u kHz", (unsigned int)(frequency / 1000UL), (unsigned int)(frequency % 1000UL) / 10);
     lcd.setCursor(0, 1);
     lcd.print(buffer);
 
@@ -49,13 +49,254 @@ void setfreq (unsigned long frequency)
 
 
 /*
- * pollSerial - read characters from the serial line and interpret them according
- * to the Yaesu FT-991 CAT protocol.
+ * General structure of the CAT support functions:
+ *
+ * Calling parameters:
+ * pBuffer:  points to a buffer containing the data field of the received CAT
+ *           command. This is the character string between the 2-byte command
+ *           code and the trailing semicolon.
+ * rxlength: length of the data field in buffer, 0 if no additional data was
+ *           provided.
+ *
+ * Return data:
+ * pBuffer:  If a response to the CAT command is required, its data field must
+ *           be written into the same buffer. The command characters and the
+ *           trailing semicolon are then added later by the caller of the
+ *           function.
+ * Return value: 0, if no response shall be sent back, or the number of
+ *           characters in the data field for the CAT command response.
  */
-void pollSerial(void)
+
+int doAutoInformation(char *pBuffer, int rxlength)
 {
-    static char rxbuffer[32];
-    static char txbuffer[32];
+    if (rxlength > 0)
+    {
+        // Write
+        catAutoInformation = atoi(pBuffer);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "%d", catAutoInformation);
+    }
+}
+
+
+int doMenu(char *pBuffer, int rxlength)
+{
+    static char menuBuffer[32] = "";
+
+    if (rxlength > 3)
+    {
+        // Write
+        strcpy(menuBuffer, pBuffer + 3);
+        return 0;
+    }
+    else if (rxlength == 3)
+    {
+        // Read
+        return sprintf(pBuffer + 3, "%s", menuBuffer) + 3;
+    }
+    else
+    {
+        // Command is too short, ignore.
+        return 0;
+    }
+}
+
+
+int doFrequencyVfoA(char *pBuffer, int rxlength)
+{
+      if (rxlength > 0)
+      {
+          // Write
+          frequencyVfoA = atol(pBuffer);
+          setfreq(frequency);
+          return 0;
+      }
+      else
+      {
+          // Read
+          return sprintf(pBuffer, "%09lu", frequencyVfoA);
+      }
+}
+
+
+int doFrequencyVfoB(char *pBuffer, int rxlength)
+{
+      if (rxlength > 0)
+      {
+          // Write
+          frequencyVfoB = atol(pBuffer);
+          setfreq(frequency);
+          return 0;
+      }
+      else
+      {
+          // Read
+          return sprintf(pBuffer, "%09lu", frequencyVfoB);
+      }
+}
+
+
+int doFunctionTx(char *pBuffer, int rxlength)
+{
+      if (rxlength > 0)
+      {
+          // Write
+          catTx = atoi(pBuffer);
+          return 0;
+      }
+      else
+      {
+          // Read
+          return sprintf(pBuffer, "%d", catTx);
+      }
+}
+
+
+int doIdentification(char *pBuffer, int rxlength)
+{
+    // Read only
+    strcpy(pBuffer, "0570");
+    return 4;
+}
+
+
+int doInformation(char *pBuffer, int rxlength)
+{
+    // Read only
+    return sprintf(pBuffer, "001%09lu+000000%X00000", frequencyVfoA, catOperatingMode);
+}
+
+
+int doKeySpeed(char *pBuffer, int rxlength)
+{
+    if (rxlength > 0)
+    {
+        // Write
+        catKeySpeed = atoi(pBuffer);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "%03d", catKeySpeed);
+    }
+}
+
+
+int doOperatingMode(char *pBuffer, int rxlength)
+{
+    if (rxlength > 1)
+    {
+        // Write
+        catOperatingMode = atoi(pBuffer + 1);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "0%d", catOperatingMode);
+    }
+}
+
+
+int doNarrow(char *pBuffer, int rxlength)
+{
+    if (rxlength > 1)
+    {
+        // Write
+        catNarrow = atoi(pBuffer + 1);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "0%d", catNarrow);
+    }
+}
+
+
+int doPowerSwitch(char *pBuffer, int rxlength)
+{
+    if (rxlength > 0)
+    {
+        // Write
+        catPowerSwitch = atoi(pBuffer);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "%d", catPowerSwitch);
+    }
+}
+
+
+int doBandwidth(char *pBuffer, int rxlength)
+{
+    if (rxlength > 1)
+    {
+        // Set
+        catBandWidth = atoi(pBuffer + 1);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "0%02d", catBandWidth);
+    }
+}
+
+
+int doTxSet(char *pBuffer, int rxlength)
+{
+    if (rxlength > 0)
+    {
+        // Write
+        catTxSet = atoi(pBuffer);
+        return 0;
+    }
+    else
+    {
+        // Read
+        return sprintf(pBuffer, "%d", catTxSet);
+    }
+}
+
+
+static struct catCmdItem
+{
+    int cmd;
+    int (*fn)(char *, int);
+} catCmdList[] =
+{
+    { 0x4149, doAutoInformation },    // AI: Auto Information
+    { 0x4558, doMenu },               // EX: Menu
+    { 0x4641, doFrequencyVfoA },      // FA: Frequency VFO-A
+    { 0x4642, doFrequencyVfoB },      // FB: Frequency VFO-B
+    { 0x4654, doFunctionTx },         // FT: Function TX
+    { 0x4944, doIdentification },     // ID: Identification
+    { 0x4946, doInformation },        // IF: Information
+    { 0x4B53, doKeySpeed },           // KS: Key Speed
+    { 0x4D44, doOperatingMode },      // MD: Operating Mode
+    { 0x4E41, doNarrow },             // NA: Narrow
+    { 0x5053, doPowerSwitch },        // PS: Power Switch
+    { 0x5348, doBandwidth },          // SH: Bandwidth
+    { 0x5458, doTxSet },              // TX: TX Set
+    { 0x0000, NULL }                  // End marker, don't delete!
+};
+
+
+/*
+ * handleSerial - read characters from the serial line and interpret them
+ *                according to the Yaesu FT-991 CAT protocol.
+ */
+void handleSerial(void)
+{
+    static char rxbuffer[64];
     static unsigned int rxlength = 0;
 
     while (Serial.available() > 0)
@@ -64,12 +305,14 @@ void pollSerial(void)
 
         if (!isprint(c) || isspace(c))
         {
+            // Ignore non-printable and whitespace characters.
             continue;
         }
 
         if (c != ';')
         {
-            // No termination character received, save the character in the receive buffer.
+            // No termination character received, save the character in the
+            // receive buffer.
             if (rxlength < sizeof(rxbuffer) - 2)
             {
                 rxbuffer[rxlength++] = toupper(c);
@@ -77,16 +320,16 @@ void pollSerial(void)
             continue;
         }
 
-        // Termination character received, command is complete. Try to interpret it.
+        // Termination character was received. Check if was a potential command.
         if (rxlength < 2)
         {
-            // Command is too short, ignore it and clear the receive buffer.
+            // Not enough characters, clear the receive buffer.
             rxlength = 0;
             continue;
         }
 
+        // Add a string termination character to the buffer.
         rxbuffer[rxlength] = '\0';
-        *txbuffer = '\0';
 
 #ifdef DEBUG
         lcd.setCursor(0, 0);
@@ -97,206 +340,55 @@ void pollSerial(void)
         //delay(500);
 #endif
 
-        // Command characters can be in upper or lower case. Convert to upper case first.
-        rxbuffer[0] = toupper(rxbuffer[0]);
-        rxbuffer[1] = toupper(rxbuffer[1]);
+        // Build the CAT command code from the first two characters in the
+        // receive buffer.
+        int cmd = (rxbuffer[0] << 8) | rxbuffer[1];
+        int rc = 0;
 
-        // Get the command from the first two characters in the receive buffers.
-        int cmd = (toupper(rxbuffer[0]) << 8) | toupper(rxbuffer[1]);
-        switch (cmd)
+        // Search the CAT command in the command list.
+        catCmdItem *pCatCmd;
+        for (pCatCmd = catCmdList;
+             (pCatCmd->cmd != cmd) && (pCatCmd->cmd != 0);
+             ++pCatCmd);
+
+        if (pCatCmd->cmd == cmd)
         {
-            case 0x4149:        // AI: Auto Information
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "AI%d;", catAutoInformation);
-                }
-                else
-                {
-                    // Write
-                    catAutoInformation = atoi(&rxbuffer[3]);
-                }
-                break;
-
-            case 0x4558:        // EX: Menu
-                if (rxlength >= 5)
-                {
-                    static char menuBuffer[32] = "";
-                    if (rxlength == 5)
-                    {
-                        // Read
-                        strcpy(txbuffer, menuBuffer);
-                        strcat(txbuffer, ";");
-                    }
-                    else
-                    {
-                        // Write
-                        strcpy(menuBuffer, rxbuffer);
-                    }
-                }
-                break;
-
-            case 0x4641:        // FA: Frequency VFO-A
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "FA%09lu;", frequencyVfoA);
-                }
-                else
-                {
-                    // Write
-                    frequencyVfoA = atol(&rxbuffer[2]);
-                    setfreq(frequency);
-                }
-                break;
-
-            case 0x4642:        // FB: Frequency VFO-B
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "FB%09lu;", frequencyVfoB);
-                }
-                else
-                {
-                    // Write
-                    frequencyVfoB = atol(&rxbuffer[2]);
-                    setfreq(frequency);
-                }
-                break;
-
-            case 0x4654:        // FT: Function TX
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "FT%d;", catTx);
-                }
-                else
-                {
-                    // Write
-                    catTx = atoi(&rxbuffer[2]) - 2;
-                }
-                break;
-
-            case 0x4944:        // ID: Identification
-                if (rxlength == 2)
-                {
-                    strcpy(txbuffer, "ID0570;");
-                }
-                break;
-
-            case 0x4946:        // IF: Information
-                if (rxlength == 2)
-                {
-                    sprintf(txbuffer, "IF001%09lu+000000%X00000;", frequency, catOperatingMode);
-                }
-                break;
-
-            case 0x4B53:        // KS: Key Speed
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "KS%03d;", catKeySpeed);
-                }
-                else
-                {
-                    // Write
-                    catKeySpeed = atoi(&rxbuffer[2]);
-                }
-                break;
-
-            case 0x4D44:        // MD: Operating Mode
-                if (rxlength == 3)
-                {
-                    // Read Mode
-                    sprintf(txbuffer, "MD0%d;", catOperatingMode);
-                }
-                else
-                {
-                    // Set Mode
-                    catOperatingMode = atoi(&rxbuffer[3]);
-                }
-                break;
-
-            case 0x4E41:        // NA: Narrow
-                if (rxlength == 3)
-                {
-                    // Read Mode
-                    sprintf(txbuffer, "NA0%d;", catNarrow);
-                }
-                else
-                {
-                    // Set Mode
-                    catNarrow = atoi(&rxbuffer[3]);
-                }
-                break;
-
-            case 0x5053:        // PS: Power Switch
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "PS%d;", catPowerSwitch);
-                }
-                else
-                {
-                    // Write
-                    catPowerSwitch = atoi(&rxbuffer[2]);
-                }
-                break;
-
-            case 0x5348:        // SH: Width
-                if (rxlength == 3)
-                {
-                    // Read Width
-                    sprintf(txbuffer, "SH0%02d;", catBandWidth);
-                }
-                else
-                {
-                    // Set Width
-                    catBandWidth = atoi(&rxbuffer[3]);
-                }
-                break;
-
-            case 0x5458:        // TX: TX Set
-                if (rxlength == 2)
-                {
-                    // Read
-                    sprintf(txbuffer, "TX%d;", catTxSet);
-                }
-                else
-                {
-                    // Write
-                    catTxSet = atoi(&rxbuffer[2]);
-                }
-                break;
-
-            default:            // unknown command
-                sprintf(txbuffer, "%c%c????;", rxbuffer[0], rxbuffer[1]);
-                delay(1000);
-                break;
+            // CAT command found, call the corresponding CAT support function.
+            rc = pCatCmd->fn(rxbuffer + 2, rxlength - 2);
+        }
+        else
+        {
+            // CAT command not found, return an error message.
+            strcpy(rxbuffer + 2, "???");
+            rc = 3;
         }
 
-        if (strlen(txbuffer) > 0)
+        if (rc > 0)
         {
-            Serial.print(txbuffer);
+            // Add the trailing semicolon.
+            strcat(rxbuffer + rc + 2, ";");
+
+            // Send the response to the CAT command.
+            Serial.print(rxbuffer);
 
 #ifdef DEBUG
             lcd.setCursor(0, 1);
             lcd.print("                ");
             lcd.setCursor(0, 1);
-            lcd.print(txbuffer);
+            lcd.print(rxbuffer);
             //delay(500);
 #endif
         }
 
-        rxlength = 0;           // Received command completed.
+        rxlength = 0;           // Received CAT command completed.
     }
 }
 
 
 /*
- * pollRotaryEncoder - get rotation from encoder and handle it
+ * handleRotaryEncoder - get rotation from encoder and handle it
  */
-void pollRotaryEncoder(void)
+void handleRotaryEncoder(void)
 {
     long diffPosition = rotaryEncoder.readAndReset();
     if (diffPosition != 0)
@@ -341,10 +433,11 @@ void setup(void)
 
 
 /*
- * loop - periodically called by the main loop, handles serial communication and encoder rotation.
+ * loop - periodically called by the main loop, handle serial communication
+ *        and encoder rotation.
  */
 void loop(void)
 {
-    pollSerial();
-    pollRotaryEncoder();
+    handleSerial();
+    handleRotaryEncoder();
 }
