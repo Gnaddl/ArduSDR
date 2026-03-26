@@ -52,32 +52,33 @@ void setfreq(unsigned long frequency)
  * General structure of the CAT support functions:
  *
  * Calling parameters:
- * pBuffer:  points to a buffer containing the data field of the received CAT
- *           command. This is the character string between the 2-byte command
- *           code and the trailing semicolon.
- * rxlength: length of the data field in buffer, 0 if no additional data was
- *           provided.
+ * pBuffer:  points to a buffer with a '\0'-terminated string containing the
+ *           parameter field of the received CAT command.
+ * rxlength: >0:  number of characters in the parameter field in pBuffer
+ *           =0:  no parameter was provided
  *
  * Return data:
- * pBuffer:  If a response to the CAT command is required, its data field must
- *           be written into the same buffer. The command characters and the
- *           trailing semicolon are then added later by the caller of the
- *           function.
- * Return value: 0, if no response shall be sent back, or the number of
- *           characters in the data field for the CAT command response.
+ * pBuffer:  If an answer to a CAT read command is required, the content of
+ *           its parameter field must be written into the same buffer. The
+ *           command and the terminator are then added later by the caller of
+ *           the function.
+ * Return value:
+ *           >0:  the number of characters in pBuffer for the parameter field
+ *                of the CAT command answer
+ *           =0:  no answer shall be sent back
  */
 
 int doAutoInformation(char *pBuffer, int rxlength)
 {
     if (rxlength > 0)
     {
-        // Write
+        // Set command
         catAutoInformation = atoi(pBuffer);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "%d", catAutoInformation);
     }
 }
@@ -89,13 +90,13 @@ int doMenu(char *pBuffer, int rxlength)
 
     if (rxlength > 3)
     {
-        // Write
+        // Set command
         strcpy(menuBuffer, pBuffer + 3);
         return 0;
     }
     else if (rxlength == 3)
     {
-        // Read
+        // Read command
         return sprintf(pBuffer + 3, "%s", menuBuffer) + 3;
     }
     else
@@ -110,14 +111,14 @@ int doFrequencyVfoA(char *pBuffer, int rxlength)
 {
       if (rxlength > 0)
       {
-          // Write
+          // Set command
           frequencyVfoA = atol(pBuffer);
           setfreq(frequency);
           return 0;
       }
       else
       {
-          // Read
+          // Read command
           return sprintf(pBuffer, "%09lu", frequencyVfoA);
       }
 }
@@ -127,14 +128,14 @@ int doFrequencyVfoB(char *pBuffer, int rxlength)
 {
       if (rxlength > 0)
       {
-          // Write
+          // Set command
           frequencyVfoB = atol(pBuffer);
           setfreq(frequency);
           return 0;
       }
       else
       {
-          // Read
+          // Read command
           return sprintf(pBuffer, "%09lu", frequencyVfoB);
       }
 }
@@ -144,13 +145,13 @@ int doFunctionTx(char *pBuffer, int rxlength)
 {
       if (rxlength > 0)
       {
-          // Write
+          // Set command
           catTx = atoi(pBuffer);
           return 0;
       }
       else
       {
-          // Read
+          // Read command
           return sprintf(pBuffer, "%d", catTx);
       }
 }
@@ -158,7 +159,7 @@ int doFunctionTx(char *pBuffer, int rxlength)
 
 int doIdentification(char *pBuffer, int rxlength)
 {
-    // Read only
+    // Read command only
     strcpy(pBuffer, "0570");
     return 4;
 }
@@ -166,7 +167,7 @@ int doIdentification(char *pBuffer, int rxlength)
 
 int doInformation(char *pBuffer, int rxlength)
 {
-    // Read only
+    // Read command only
     return sprintf(pBuffer, "001%09lu+000000%X00000", frequencyVfoA, catOperatingMode);
 }
 
@@ -175,13 +176,13 @@ int doKeySpeed(char *pBuffer, int rxlength)
 {
     if (rxlength > 0)
     {
-        // Write
+        // Set command
         catKeySpeed = atoi(pBuffer);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "%03d", catKeySpeed);
     }
 }
@@ -191,13 +192,13 @@ int doOperatingMode(char *pBuffer, int rxlength)
 {
     if (rxlength > 1)
     {
-        // Write
+        // Set command
         catOperatingMode = atoi(pBuffer + 1);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "0%d", catOperatingMode);
     }
 }
@@ -207,13 +208,13 @@ int doNarrow(char *pBuffer, int rxlength)
 {
     if (rxlength > 1)
     {
-        // Write
+        // Set command
         catNarrow = atoi(pBuffer + 1);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "0%d", catNarrow);
     }
 }
@@ -223,13 +224,13 @@ int doPowerSwitch(char *pBuffer, int rxlength)
 {
     if (rxlength > 0)
     {
-        // Write
+        // Set command
         catPowerSwitch = atoi(pBuffer);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "%d", catPowerSwitch);
     }
 }
@@ -239,13 +240,13 @@ int doBandwidth(char *pBuffer, int rxlength)
 {
     if (rxlength > 1)
     {
-        // Set
+        // Set command
         catBandWidth = atoi(pBuffer + 1);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "0%02d", catBandWidth);
     }
 }
@@ -255,13 +256,13 @@ int doTxSet(char *pBuffer, int rxlength)
 {
     if (rxlength > 0)
     {
-        // Write
+        // Set command
         catTxSet = atoi(pBuffer);
         return 0;
     }
     else
     {
-        // Read
+        // Read command
         return sprintf(pBuffer, "%d", catTxSet);
     }
 }
@@ -365,10 +366,13 @@ void handleSerial(void)
 
         if (rc > 0)
         {
-            // Add the trailing semicolon.
+            // The command characters for the answer are already in the buffer.
+            // Therefore, nothing needs to be done here.
+
+            // Add the terminator (trailing semicolon).
             strcat(rxbuffer + rc + 2, ";");
 
-            // Send the response to the CAT command.
+            // Send the answer to the CAT command.
             Serial.print(rxbuffer);
 
 #ifdef DEBUG
