@@ -268,7 +268,7 @@ int doTxSet(char *pBuffer, int rxlength)
 }
 
 
-static struct catCmdItem
+static const struct catCmdItem
 {
     int cmd;
     int (*fn)(char *, int);
@@ -347,7 +347,7 @@ void handleSerial(void)
         int rc = 0;
 
         // Search the CAT command in the command list.
-        catCmdItem *pCatCmd;
+        const catCmdItem *pCatCmd;
         for (pCatCmd = catCmdList;
              (pCatCmd->cmd != cmd) && (pCatCmd->cmd != 0);
              ++pCatCmd);
@@ -370,7 +370,7 @@ void handleSerial(void)
             // Therefore, nothing needs to be done here.
 
             // Add the terminator (trailing semicolon).
-            strcat(rxbuffer + rc + 2, ";");
+            strcat(rxbuffer, ";");
 
             // Send the answer to the CAT command.
             Serial.print(rxbuffer);
