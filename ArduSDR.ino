@@ -37,7 +37,7 @@ void setfreq(unsigned long frequency)
     uint64_t freq = frequency * 100ULL;
 
     char buffer[20];
-    sprintf(buffer, "%5u.%03u kHz", (unsigned int)(frequency / 1000UL), (unsigned int)(frequency % 1000UL) / 10);
+    sprintf(buffer, "%5u.%03u kHz", (unsigned int)(frequency / 1000UL), (unsigned int)(frequency % 1000UL));
     lcd.setCursor(0, 1);
     lcd.print(buffer);
 
