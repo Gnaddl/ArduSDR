@@ -26,6 +26,7 @@ int catTx = 0;
 int catPowerSwitch = 1;                     // 0 = power off, 1 = power on
 int catTxSet = 0;
 int catKeySpeed = 10;
+int catCwKeying = 0;
 int catNarrow = 0;
 
 
@@ -188,6 +189,17 @@ int doKeySpeed(char *pBuffer, int rxlength)
 }
 
 
+int doCwKeying(char *pBuffer, int rxlength)
+{
+    if (rxlength == 1)
+    {
+        // Set command
+        catCwKeying = atoi(pBuffer);
+    }
+    return 0;
+}
+
+
 int doOperatingMode(char *pBuffer, int rxlength)
 {
     if (rxlength > 1)
@@ -282,6 +294,7 @@ static const struct catCmdItem
     { 0x4944, doIdentification },     // ID: Identification
     { 0x4946, doInformation },        // IF: Information
     { 0x4B53, doKeySpeed },           // KS: Key Speed
+    { 0x4B59, doCwKeying },           // KY: CW Keying
     { 0x4D44, doOperatingMode },      // MD: Operating Mode
     { 0x4E41, doNarrow },             // NA: Narrow
     { 0x5053, doPowerSwitch },        // PS: Power Switch
